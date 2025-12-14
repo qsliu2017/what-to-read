@@ -3,7 +3,7 @@ export interface FeedConfig {
   url: string;
 }
 
-export const FEEDS: FeedConfig[] = [
+const FEEDS: FeedConfig[] = [
   {
     name: "Netflix Tech Blog",
     url: "https://netflixtechblog.medium.com/feed",
@@ -45,3 +45,12 @@ export const FEEDS: FeedConfig[] = [
     url: "https://aws.amazon.com/blogs/database/feed/",
   },
 ];
+
+if (import.meta.env.DEV) {
+  FEEDS.push({
+    name: "should fail",
+    url: "https://example.com/feed",
+  });
+}
+
+export { FEEDS };

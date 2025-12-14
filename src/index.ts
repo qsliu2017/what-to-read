@@ -5,6 +5,7 @@ interface FeedItem {
   link: string;
   pubDate: Date;
   feedName: string;
+  feedIndex?: number;
 }
 
 function compareItem(a: FeedItem, b: FeedItem) {
@@ -61,29 +62,38 @@ function parseFeed(xml: string, feedName: string): FeedItem[] {
 
 function main(): void {
   // Global state
-  const allItems: FeedItem[] = [];
-  const visibleFeeds: Set<string> = new Set(FEEDS.map((feed) => feed.name));
+  const sortedItemList: FeedItem[] = [];
+  const hiddenFeedIdxSet = new Set<number>();
 
   // HTML elements
   const feedList = document.getElementById("feed-list");
   if (!feedList) return;
   const app = document.getElementById("app");
   if (!app) return;
+  const hiddenStyle = document.createElement("style");
+  document.head.appendChild(hiddenStyle);
+
+  const updateHiddenStyles = () => {
+    if (hiddenFeedIdxSet.size === 0) {
+      hiddenStyle.textContent = "";
+    } else {
+      const selectors = Array.from(hiddenFeedIdxSet)
+        .map((feedId) => `.feed-${feedId}`)
+        .join(", ");
+      hiddenStyle.textContent = `${selectors} { display: none; }`;
+    }
+  };
 
   const renderAllItems = () => {
-    const filteredItems = allItems.filter((item) =>
-      visibleFeeds.has(item.feedName),
-    );
-
-    if (filteredItems.length === 0) {
-      app.innerHTML = '<p class="loading">No items to display</p>';
+    if (sortedItemList.length === 0) {
+      app.innerHTML = '<p class="loading">Loading feeds...</p>';
       return;
     }
 
     app.replaceChildren(
-      ...filteredItems.map((item) => {
+      ...sortedItemList.map((item) => {
         const insertItem = document.createElement("div");
-        insertItem.className = "feed-item";
+        insertItem.className = `feed-item feed-${item.feedIndex}`;
         insertItem.innerHTML = `
                   <h3><a href="${new URL(
                     item.link,
@@ -103,7 +113,7 @@ function main(): void {
     );
   };
 
-  const feedStatusList = FEEDS.map((feed) => {
+  const feedStatusList = FEEDS.map((feed, idx) => {
     const node = document.createElement("li");
     node.className = "feed-status-loading";
 
@@ -111,14 +121,14 @@ function main(): void {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = true;
-    checkbox.id = `feed-checkbox-${feed.name}`;
+    checkbox.id = `feed-checkbox-${idx}`;
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) {
-        visibleFeeds.add(feed.name);
+        hiddenFeedIdxSet.delete(idx);
       } else {
-        visibleFeeds.delete(feed.name);
+        hiddenFeedIdxSet.add(idx);
       }
-      renderAllItems();
+      updateHiddenStyles();
     });
 
     // Create label
@@ -130,10 +140,10 @@ function main(): void {
     node.appendChild(checkbox);
     node.appendChild(label);
 
-    return { node, label };
+    return node;
   });
 
-  feedList.replaceChildren(...feedStatusList.map((item) => item.node));
+  feedList.replaceChildren(...feedStatusList);
 
   // Start fetching all feeds (don't wait for Promise.all)
   FEEDS.forEach((feed, idx) => {
@@ -141,16 +151,18 @@ function main(): void {
     fetchFeed(feed)
       .then((feedItems) => {
         // Update UI after each feed completes
-        feedStatus.node.className = "feed-status-success";
+        feedStatus.className = "feed-status-success";
 
-        allItems.push(...feedItems);
-        allItems.sort(compareItem);
+        sortedItemList.push(
+          ...feedItems.map((item) => ({ ...item, feedGroupIdx: idx })),
+        );
+        sortedItemList.sort(compareItem);
 
         renderAllItems();
       })
       .catch((error) => {
         console.error(`Error fetching ${feed.name}:`, error);
-        feedStatus.node.className = "feed-status-failed";
+        feedStatus.className = "feed-status-failed";
       });
   });
 }
