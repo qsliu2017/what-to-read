@@ -10,7 +10,7 @@ export const FEEDS: FeedConfig[] = [
   },
   {
     name: "PlanetScale Blog",
-    url: "https://planetscale.com/blog/feed.atom"
+    url: "https://planetscale.com/blog/feed.atom",
   },
   {
     name: "GitHub Blog",

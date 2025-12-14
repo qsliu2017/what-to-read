@@ -3,57 +3,17 @@ import { FEEDS, FeedConfig } from "./feeds.ts";
 interface FeedItem {
   title: string;
   link: string;
-  pubDate: string;
+  pubDate: Date;
   feedName: string;
 }
 
+function compareItem(a: FeedItem, b: FeedItem) {
+  const dateA = a.pubDate.getTime();
+  const dateB = b.pubDate.getTime();
+  return dateB - dateA;
+}
+
 const CORS_PROXY = "https://corsproxy.io/?url=";
-
-function parseFeed(xml: string, feedName: string): FeedItem[] {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xml, "text/xml");
-
-  // Try RSS format first
-  const rssItems = doc.querySelectorAll("item");
-  if (rssItems.length > 0) {
-    return Array.from(rssItems).map((item) => ({
-      title: item.querySelector("title")?.textContent || "Untitled",
-      link: item.querySelector("link")?.textContent || "#",
-      pubDate: item.querySelector("pubDate")?.textContent || "",
-      feedName,
-    }));
-  }
-
-  // Try Atom format
-  const atomEntries = doc.querySelectorAll("entry");
-  if (atomEntries.length > 0) {
-    return Array.from(atomEntries).map((entry) => ({
-      title: entry.querySelector("title")?.textContent || "Untitled",
-      link: entry.querySelector("link[href]")?.getAttribute("href") || "#",
-      pubDate: entry.querySelector("published")?.textContent ||
-        entry.querySelector("updated")?.textContent ||
-        "",
-      feedName,
-    }));
-  }
-
-  throw new Error(`Error parsing feed: ${feedName}`);
-}
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return "";
-  try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return "";
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return "";
-  }
-}
 
 async function fetchFeed(feed: FeedConfig): Promise<FeedItem[]> {
   const response = await fetch(CORS_PROXY + encodeURIComponent(feed.url));
@@ -66,9 +26,43 @@ async function fetchFeed(feed: FeedConfig): Promise<FeedItem[]> {
   return items;
 }
 
+function parseFeed(xml: string, feedName: string): FeedItem[] {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, "text/xml");
+
+  // Try RSS format first
+  const rssItems = doc.querySelectorAll("item");
+  if (rssItems.length > 0) {
+    return Array.from(rssItems).map((item) => ({
+      title: item.querySelector("title")?.textContent || "Untitled",
+      link: item.querySelector("link")?.textContent || "#",
+      pubDate: new Date(item.querySelector("pubDate")?.textContent || 0),
+      feedName,
+    }));
+  }
+
+  // Try Atom format
+  const atomEntries = doc.querySelectorAll("entry");
+  if (atomEntries.length > 0) {
+    return Array.from(atomEntries).map((entry) => ({
+      title: entry.querySelector("title")?.textContent || "Untitled",
+      link: entry.querySelector("link[href]")?.getAttribute("href") || "#",
+      pubDate: new Date(
+        entry.querySelector("published")?.textContent ||
+          entry.querySelector("updated")?.textContent ||
+          0,
+      ),
+      feedName,
+    }));
+  }
+
+  throw new Error(`Error parsing feed: ${feedName}`);
+}
+
 function main(): void {
   // Global state
   const allItems: FeedItem[] = [];
+  const visibleFeeds: Set<string> = new Set(FEEDS.map((feed) => feed.name));
 
   // HTML elements
   const feedList = document.getElementById("feed-list");
@@ -76,60 +70,91 @@ function main(): void {
   const app = document.getElementById("app");
   if (!app) return;
 
-  const feedStatusList =    FEEDS.map((feed) => {
-      const status = "loading";
-      const node = document.createElement("li");
-      node.className = `feed-status-${status}`;
-      node.textContent = `${feed.name} (${status})`;
-      return node;
-    });
+  const renderAllItems = () => {
+    const filteredItems = allItems.filter((item) =>
+      visibleFeeds.has(item.feedName),
+    );
 
-    feedList.replaceChildren(...feedStatusList);
+    if (filteredItems.length === 0) {
+      app.innerHTML = '<p class="loading">No items to display</p>';
+      return;
+    }
 
-    // Start fetching all feeds (don't wait for Promise.all)
-  FEEDS.forEach((feed, idx) => {
-      const feedStatus = feedStatusList[idx];
-    fetchFeed(feed).then((feedItems) => {
-      // Update UI after each feed completes
-      feedStatus.className = "feed-status-success";
-      feedStatus.textContent = `${feed.name} (loaded)`;
-
-      // `allItems` is sorted. Sort us and then insert ourselves into the sorted array.
-      const sortedFeedItems = feedItems.sort((a, b) => {
-        const dateA = new Date(a.pubDate).getTime() || 0;
-        const dateB = new Date(b.pubDate).getTime() || 0;
-        return dateB - dateA;
-      });
-
-      sortedFeedItems.forEach((item) => {
-
-        const insertItem = document.createElement('div');
-        insertItem.className = 'feed-item';
+    app.replaceChildren(
+      ...filteredItems.map((item) => {
+        const insertItem = document.createElement("div");
+        insertItem.className = "feed-item";
         insertItem.innerHTML = `
-                  <h3><a href="${new URL(item.link)}" target="_blank" rel="noopener">${item.title}</a></h3>
+                  <h3><a href="${new URL(
+                    item.link,
+                  )}" target="_blank" rel="noopener">${item.title}</a></h3>
                   <p class="feed-source">${item.feedName}</p>
-                  <p class="feed-date">${formatDate(item.pubDate)}</p>
+                  <p class="feed-date">${item.pubDate.toLocaleDateString(
+                    "en-US",
+                    {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    },
+                  )}</p>
               `;
+        return insertItem;
+      }),
+    );
+  };
 
-        if (allItems.length === 0) {
-          allItems.push(item);
-          app.replaceChildren(insertItem);
-        } else {
-          const insertIndex = allItems.findIndex((existingItem) => new Date(existingItem.pubDate).getTime() < new Date(item.pubDate).getTime());
-          if (insertIndex === -1) {
-            allItems.push(item);
-            app.appendChild(insertItem);
-          } else {
-            allItems.splice(insertIndex, 0, item);
-            app.insertBefore(insertItem, app.childNodes[insertIndex]);
-          }
-        }
-      });
-    }).catch((error) => {
-      console.error(`Error fetching ${feed.name}:`, error);
-      feedStatus.className = "feed-status-failed";
-      feedStatus.textContent = `${feed.name} (failed)`;
+  const feedStatusList = FEEDS.map((feed) => {
+    const status = "loading";
+    const node = document.createElement("li");
+    node.className = `feed-status-${status}`;
+
+    // Create checkbox
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = true;
+    checkbox.id = `feed-checkbox-${feed.name}`;
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        visibleFeeds.add(feed.name);
+      } else {
+        visibleFeeds.delete(feed.name);
+      }
+      renderAllItems();
     });
+
+    // Create label
+    const label = document.createElement("label");
+    label.htmlFor = checkbox.id;
+    label.className = "feed-label";
+    label.textContent = `${feed.name} (${status})`;
+
+    node.appendChild(checkbox);
+    node.appendChild(label);
+
+    return { node, label };
+  });
+
+  feedList.replaceChildren(...feedStatusList.map((item) => item.node));
+
+  // Start fetching all feeds (don't wait for Promise.all)
+  FEEDS.forEach((feed, idx) => {
+    const feedStatus = feedStatusList[idx];
+    fetchFeed(feed)
+      .then((feedItems) => {
+        // Update UI after each feed completes
+        feedStatus.node.className = "feed-status-success";
+        feedStatus.label.textContent = `${feed.name} (loaded)`;
+
+        allItems.push(...feedItems);
+        allItems.sort(compareItem);
+
+        renderAllItems();
+      })
+      .catch((error) => {
+        console.error(`Error fetching ${feed.name}:`, error);
+        feedStatus.node.className = "feed-status-failed";
+        feedStatus.label.textContent = `${feed.name} (failed)`;
+      });
   });
 }
 
