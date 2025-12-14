@@ -25,6 +25,10 @@ const FEEDS: FeedConfig[] = [
     url: "https://neon.com/blog/rss.xml",
   },
   {
+    name: "Boring SQL",
+    url: "https://boringsql.com/atom.xml",
+  },
+  {
     name: "Thomas Neumann's bibliography",
     url: "https://dblp.org/pid/n/ThomasNeumann.rss",
   },
