@@ -31,10 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        id: configure
 
       - uses: oven-sh/setup-bun@v2
       - run: bun install
-      - run: bun run build --base=${{ env.url }}
+      - run: bun run build --base=${{ steps.configure.outputs.base_url }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
