@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>What to Read</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        gap: 20px;
+      }
+      #sidebar {
+        width: 200px;
+        flex-shrink: 0;
+      }
+      #sidebar h2 {
+        margin: 0 0 10px 0;
+        font-size: 1rem;
+      }
+      #feed-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      #feed-list li {
+        padding: 5px 0;
+        font-size: 0.9em;
+      }
+      .feed-status-loading {
+        color: #666;
+      }
+      .feed-status-success {
+        color: green;
+      }
+      .feed-status-failed {
+        color: red;
+      }
+      #main {
+        flex: 1;
+        max-width: 800px;
+      }
+      #main h1 {
+        margin: 0 0 20px 0;
+      }
+      .feed-item {
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #ccc;
+      }
+      .feed-item h3 {
+        margin: 0 0 5px 0;
+      }
+      .feed-item a {
+        color: #0066cc;
+      }
+      .feed-source {
+        color: #666;
+        font-size: 0.9em;
+      }
+      .feed-date {
+        color: #999;
+        font-size: 0.85em;
+      }
+      .loading {
+        color: #666;
+      }
+      .error {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sidebar">
+      <h2>Feeds</h2>
+      <ul id="feed-list"></ul>
+    </div>
+    <div id="main">
+      <h1>What to Read</h1>
+      <div id="app">
+        <p class="loading">Loading feeds...</p>
+      </div>
+    </div>
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>
