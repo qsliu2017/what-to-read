@@ -104,9 +104,8 @@ function main(): void {
   };
 
   const feedStatusList = FEEDS.map((feed) => {
-    const status = "loading";
     const node = document.createElement("li");
-    node.className = `feed-status-${status}`;
+    node.className = "feed-status-loading";
 
     // Create checkbox
     const checkbox = document.createElement("input");
@@ -126,7 +125,7 @@ function main(): void {
     const label = document.createElement("label");
     label.htmlFor = checkbox.id;
     label.className = "feed-label";
-    label.textContent = `${feed.name} (${status})`;
+    label.textContent = feed.name;
 
     node.appendChild(checkbox);
     node.appendChild(label);
@@ -143,7 +142,6 @@ function main(): void {
       .then((feedItems) => {
         // Update UI after each feed completes
         feedStatus.node.className = "feed-status-success";
-        feedStatus.label.textContent = `${feed.name} (loaded)`;
 
         allItems.push(...feedItems);
         allItems.sort(compareItem);
@@ -153,7 +151,6 @@ function main(): void {
       .catch((error) => {
         console.error(`Error fetching ${feed.name}:`, error);
         feedStatus.node.className = "feed-status-failed";
-        feedStatus.label.textContent = `${feed.name} (failed)`;
       });
   });
 }
