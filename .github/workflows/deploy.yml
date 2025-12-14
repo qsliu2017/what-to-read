@@ -33,9 +33,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
       - run: bun install
-      - run: bun run build --base=$BASE_URL
-        env:
-          BASE_URL: ${{ steps.deployment.outputs.page_url }}
+      - run: bun run build --base=${{ env.url }}
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
