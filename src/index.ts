@@ -154,7 +154,7 @@ function main(): void {
         feedStatus.className = "feed-status-success";
 
         sortedItemList.push(
-          ...feedItems.map((item) => ({ ...item, feedGroupIdx: idx })),
+          ...feedItems.map((item) => ({ ...item, feedIndex: idx })),
         );
         sortedItemList.sort(compareItem);
 
